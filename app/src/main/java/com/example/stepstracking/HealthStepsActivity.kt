@@ -32,9 +32,7 @@ class HealthStepsActivity : AppCompatActivity() {
 	)
 	private val healthConnectSettingsLauncher = registerForActivityResult(
 		ActivityResultContracts.StartActivityForResult()
-	) {
-		checkPermissions()
-	}
+	) { checkPermissions() }
 	private var fetchJob: Job? = null
 	private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
 		Log.e(TAG, "协程异常: ${exception.message}")
@@ -127,7 +125,7 @@ class HealthStepsActivity : AppCompatActivity() {
 				if (granted.containsAll(healthPermissions)) {
 					Log.d(TAG, "已有所需健康数据权限")
 					binding.cardPermissions.visibility = View.GONE
-					startFetchingSteps()
+					binding.progressLoading.visibility = View.GONE
 				} else {
 					Log.d(TAG, "需要请求健康数据权限")
 					showRequestPermissionsUI()
@@ -256,17 +254,6 @@ class HealthStepsActivity : AppCompatActivity() {
 			}
 			startActivity(browserIntent)
 		}
-	}
-
-	private fun startFetchingSteps() {
-		Log.d(TAG, "开始获取步数数据")
-		binding.tvSteps.text = "正在获取步数数据..."
-		binding.progressLoading.visibility = View.VISIBLE
-		binding.tvError.visibility = View.GONE
-		binding.btnRetry.visibility = View.GONE
-
-		fetchJob?.cancel()
-		stepsRepository.refreshStepsData()
 	}
 
 	override fun onResume() {

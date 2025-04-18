@@ -3,18 +3,14 @@ package com.example.stepstracking
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import com.example.stepstracking.databinding.ActivityMainBinding
 import java.text.DecimalFormat
 
@@ -46,13 +42,7 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestPermission()
         stepsRepository = StepsRepository.getInstance(this)
-        stepsRepository.todaySteps.observe(this) { steps ->
-            updateStepsUI(steps)
-        }
-        stepsRepository.calories.observe(this) { calories ->
-            val decimalFormat = DecimalFormat("0.0")
-            binding.tvCaloriesCount.text = decimalFormat.format(calories)
-        }
+        setupObservers()
 
         binding.ctaReset.setOnClickListener {
             stepsRepository.resetSteps()
@@ -61,6 +51,17 @@ class MainActivity : AppCompatActivity() {
         binding.ctaHealth.setOnClickListener {
             startActivity(Intent(this, HealthStepsActivity::class.java))
         }
+    }
+
+    private fun setupObservers() {
+        stepsRepository.todaySteps.observe(this, Observer { steps ->
+            updateStepsUI(steps)
+        })
+
+        stepsRepository.calories.observe(this, Observer { calories ->
+            val decimalFormat = DecimalFormat("0.0")
+            binding.tvCaloriesCount.text = decimalFormat.format(calories)
+        })
     }
 
     private fun updateStepsUI(steps: Int) {
