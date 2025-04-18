@@ -2,4 +2,11 @@
 <resources>
 
 	<style name="Theme.StepsTracking" parent="Theme.MaterialComponents.Light.NoActionBar" />
+
+	<style name="Theme.StepsTracking.NoActionBar" parent="Theme.MaterialComponents.Light.NoActionBar">
+		<item name="android:windowFullscreen">true</item>
+		<item name="android:windowContentOverlay">@null</item>
+		<item name="android:windowBackground">@color/blue_700</item>
+	</style>
+
 </resources>

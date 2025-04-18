@@ -1,47 +1,211 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
-	android:layout_height="wrap_content"
-	android:layout_gravity="center_vertical"
-	android:orientation="vertical">
+	android:layout_height="match_parent"
+	android:background="#121212"
+	tools:context=".MainActivity">
 
-	<TextView
+	<!-- 顶部步数和卡路里卡片 -->
+	<androidx.cardview.widget.CardView
+		android:id="@+id/card_stats"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:gravity="center"
-		android:text="Steps:"
-		android:textColor="@color/black"
-		android:textSize="30sp" />
+		android:layout_margin="16dp"
+		app:cardCornerRadius="16dp"
+		app:cardBackgroundColor="#1E1E1E"
+		app:cardElevation="4dp"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent">
 
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:padding="16dp">
+
+			<!-- 步数图标和计数 -->
+			<ImageView
+				android:id="@+id/iv_steps_icon"
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:src="@android:drawable/ic_menu_directions"
+				android:background="@drawable/circle_brown_background"
+				android:padding="6dp"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toTopOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"/>
+
+			<TextView
+				android:id="@+id/tv_steps_count"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="1"
+				android:textSize="18sp"
+				android:textColor="#FFFFFF"
+				android:layout_marginStart="16dp"
+				app:layout_constraintStart_toEndOf="@id/iv_steps_icon"
+				app:layout_constraintTop_toTopOf="@id/iv_steps_icon"
+				app:layout_constraintBottom_toBottomOf="@id/iv_steps_icon"/>
+
+			<!-- 卡路里图标和计数 -->
+			<ImageView
+				android:id="@+id/iv_calories_icon"
+				android:layout_width="32dp"
+				android:layout_height="32dp"
+				android:src="@android:drawable/ic_menu_compass"
+				android:background="@drawable/circle_orange_background"
+				android:padding="6dp"
+				android:layout_marginStart="32dp"
+				app:layout_constraintStart_toEndOf="@id/tv_steps_count"
+				app:layout_constraintTop_toTopOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"/>
+
+			<TextView
+				android:id="@+id/tv_calories_count"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="0.0"
+				android:textSize="18sp"
+				android:textColor="#FFFFFF"
+				android:layout_marginStart="16dp"
+				app:layout_constraintStart_toEndOf="@id/iv_calories_icon"
+				app:layout_constraintTop_toTopOf="@id/iv_calories_icon"
+				app:layout_constraintBottom_toBottomOf="@id/iv_calories_icon"/>
+
+			<!-- 进度条 -->
+			<ProgressBar
+				android:id="@+id/progress_steps"
+				style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+				android:layout_width="0dp"
+				android:layout_height="6dp"
+				android:progressTint="#4CAF50"
+				android:progress="20"
+				android:layout_marginTop="8dp"
+				app:layout_constraintTop_toBottomOf="@id/iv_steps_icon"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</androidx.cardview.widget.CardView>
+
+	<!-- 大数字步数显示 -->
 	<TextView
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
 		android:id="@+id/tv_steps_counter"
-		android:gravity="center"
-		android:textColor="@color/black"
-		android:textSize="30sp" />
-
-	<Button
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:id="@+id/cta_reset"
-		android:layout_gravity="center"
-		android:paddingTop="20dp"
-		android:text="RESET" />
+		android:text="0"
+		android:textSize="120sp"
+		android:textColor="#FFFFFF"
+		android:textStyle="bold"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"/>
 
+	<!-- 目标步数显示 -->
 	<TextView
+		android:id="@+id/tv_steps_goal"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="/6000 步"
+		android:textSize="24sp"
+		android:textColor="#AAAAAA"
+		app:layout_constraintStart_toStartOf="@id/tv_steps_counter"
+		app:layout_constraintEnd_toEndOf="@id/tv_steps_counter"
+		app:layout_constraintTop_toBottomOf="@id/tv_steps_counter"
+		android:layout_marginTop="8dp"/>
+
+	<!-- 平均步数显示 -->
+	<TextView
+		android:id="@+id/tv_steps_average"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="每日平均值: 0"
+		android:textSize="16sp"
+		android:textColor="#AAAAAA"
+		app:layout_constraintStart_toStartOf="@id/tv_steps_goal"
+		app:layout_constraintEnd_toEndOf="@id/tv_steps_goal"
+		app:layout_constraintTop_toBottomOf="@id/tv_steps_goal"
+		android:layout_marginTop="16dp"/>
+
+	<!-- 底部进度条 -->
+	<ProgressBar
+		android:id="@+id/progress_bar_bottom"
+		style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+		android:layout_width="0dp"
+		android:layout_height="8dp"
+		android:progressTint="#4CAF50"
+		android:progress="0"
+		android:layout_marginHorizontal="32dp"
+		app:layout_constraintBottom_toTopOf="@id/btn_controls"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		android:layout_marginBottom="32dp"/>
+
+	<!-- 底部操作栏 -->
+	<LinearLayout
+		android:id="@+id/btn_controls"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:id="@+id/tv_steps_counter_2"
+		android:orientation="horizontal"
 		android:gravity="center"
-		android:paddingTop="20dp"
-		android:textColor="@color/black"
-		android:textSize="30sp" />
+		android:padding="16dp"
+		app:layout_constraintBottom_toBottomOf="parent">
 
-	<Button
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:id="@+id/cta_health"
-		android:text="Health test" />
-</LinearLayout>
+		<LinearLayout
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:orientation="vertical"
+			android:gravity="center">
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="报告"
+				android:textColor="#FFFFFF"
+				android:textSize="16sp"/>
+		</LinearLayout>
+
+		<LinearLayout
+			android:id="@+id/cta_reset"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:orientation="vertical"
+			android:gravity="center">
+
+			<ImageButton
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:src="@android:drawable/ic_media_pause"
+				android:background="@drawable/circle_dark_background"
+				android:contentDescription="重置步数"
+				android:padding="12dp"/>
+		</LinearLayout>
+
+		<LinearLayout
+			android:id="@+id/cta_health"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:orientation="vertical"
+			android:gravity="center">
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="详情"
+				android:textColor="#F44336"
+				android:textSize="16sp"/>
+
+			<ImageView
+				android:layout_width="12dp"
+				android:layout_height="12dp"
+				android:src="@android:drawable/ic_menu_more"
+                app:tint="#F44336" />
+		</LinearLayout>
+	</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

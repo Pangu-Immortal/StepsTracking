@@ -185,6 +185,8 @@ class HealthStepsActivity : AppCompatActivity() {
 					Log.d(TAG, "已有所需健康数据权限")
 					binding.cardPermissions.visibility = View.GONE
 					startFetchingSteps()
+					// 启动步数跟踪服务
+					StepsTrackingService.startService(this@HealthStepsActivity)
 				} else {
 					// 需要请求权限
 					Log.d(TAG, "需要请求健康数据权限")
