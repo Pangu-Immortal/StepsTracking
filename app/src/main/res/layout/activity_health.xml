@@ -1,11 +1,227 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+<androidx.constraintlayout.widget.ConstraintLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
-	android:layout_height="match_parent">
+	android:layout_height="match_parent"
+	android:background="#F8F8F8"
+	tools:context=".HealthStepsActivity">
 
+	<!-- 顶部工具栏 -->
+	<androidx.appcompat.widget.Toolbar
+		android:id="@+id/toolbar"
+		android:layout_width="0dp"
+		android:layout_height="?attr/actionBarSize"
+		android:background="@color/purple_500"
+		app:title="健康步数追踪"
+		app:titleTextColor="@color/white"
+		app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"/>
+
+	<!-- 日期显示 -->
 	<TextView
-		android:id="@+id/tv_steps"
+		android:id="@+id/tv_date"
 		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"/>
-</FrameLayout>
+		android:layout_height="wrap_content"
+		android:textSize="16sp"
+		android:textColor="#5E5E5E"
+		android:fontFamily="sans-serif-medium"
+		app:layout_constraintTop_toBottomOf="@id/toolbar"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		android:layout_marginTop="16dp"
+		tools:text="2025年04月18日"/>
+
+	<!-- 步数显示卡片 -->
+	<androidx.cardview.widget.CardView
+		android:id="@+id/card_steps"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="16dp"
+		android:layout_marginHorizontal="16dp"
+		app:cardCornerRadius="16dp"
+		app:cardElevation="4dp"
+		app:layout_constraintTop_toBottomOf="@id/tv_date"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent">
+
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:padding="24dp">
+
+			<!-- 步数进度环 -->
+			<com.google.android.material.progressindicator.CircularProgressIndicator
+				android:id="@+id/progress_circular"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:progress="0"
+				app:indicatorSize="200dp"
+				app:trackThickness="8dp"
+				app:indicatorColor="@color/purple_500"
+				app:trackColor="#E6E6E6"
+				app:layout_constraintTop_toTopOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+
+			<!-- 步数数字 -->
+			<TextView
+				android:id="@+id/tv_steps"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="0"
+				android:textSize="28sp"
+				android:textStyle="bold"
+				android:textColor="#333333"
+				app:layout_constraintTop_toTopOf="@id/progress_circular"
+				app:layout_constraintStart_toStartOf="@id/progress_circular"
+				app:layout_constraintEnd_toEndOf="@id/progress_circular"
+				app:layout_constraintBottom_toBottomOf="@id/progress_circular"/>
+
+			<!-- 步数标签 -->
+			<TextView
+				android:id="@+id/tv_steps_label"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="步"
+				android:textSize="16sp"
+				android:textColor="#666666"
+				android:visibility="gone"
+				app:layout_constraintTop_toBottomOf="@id/tv_steps"
+				app:layout_constraintStart_toStartOf="@id/tv_steps"
+				app:layout_constraintEnd_toEndOf="@id/tv_steps"
+				tools:visibility="visible"/>
+
+			<!-- 数据来源标签 -->
+			<TextView
+				android:id="@+id/tv_data_source"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="数据来源: Health Connect"
+				android:textSize="12sp"
+				android:textColor="#888888"
+				android:layout_marginTop="16dp"
+				app:layout_constraintTop_toBottomOf="@id/progress_circular"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</androidx.cardview.widget.CardView>
+
+	<!-- 加载指示器 -->
+	<ProgressBar
+		android:id="@+id/progress_loading"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:indeterminateTint="@color/purple_500"
+		app:layout_constraintTop_toBottomOf="@id/toolbar"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"/>
+
+	<!-- 错误信息文本 -->
+	<TextView
+		android:id="@+id/tv_error"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_marginHorizontal="32dp"
+		android:gravity="center"
+		android:textColor="#E91E63"
+		android:textSize="16sp"
+		android:visibility="gone"
+		app:layout_constraintTop_toBottomOf="@id/toolbar"
+		app:layout_constraintBottom_toTopOf="@id/btn_retry"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintVertical_chainStyle="packed"
+		tools:text="无法连接健康数据服务"
+		tools:visibility="visible"/>
+
+	<!-- 重试按钮 -->
+	<Button
+		android:id="@+id/btn_retry"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="重试"
+		android:backgroundTint="@color/purple_500"
+		android:visibility="gone"
+		android:layout_marginTop="16dp"
+		app:layout_constraintTop_toBottomOf="@id/tv_error"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		tools:visibility="visible"/>
+
+	<!-- 权限请求卡片 -->
+	<androidx.cardview.widget.CardView
+		android:id="@+id/card_permissions"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_marginHorizontal="24dp"
+		app:cardCornerRadius="12dp"
+		app:cardElevation="4dp"
+		android:visibility="gone"
+		app:layout_constraintTop_toBottomOf="@id/toolbar"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		tools:visibility="visible">
+
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:padding="24dp">
+
+			<ImageView
+				android:id="@+id/iv_permission_icon"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:src="@android:drawable/ic_dialog_info"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:tint="@color/purple_500" />
+
+			<TextView
+				android:id="@+id/tv_permission_title"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="需要健康数据权限"
+				android:textSize="18sp"
+				android:textStyle="bold"
+				android:textColor="#333333"
+				android:gravity="center"
+				android:layout_marginTop="16dp"
+				app:layout_constraintTop_toBottomOf="@id/iv_permission_icon"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+
+			<TextView
+				android:id="@+id/tv_permission_message"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="此应用需要访问您的健康数据才能显示步数信息。请点击下方按钮授予权限。"
+				android:textSize="14sp"
+				android:textColor="#666666"
+				android:gravity="center"
+				android:layout_marginTop="12dp"
+				app:layout_constraintTop_toBottomOf="@id/tv_permission_title"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+
+			<Button
+				android:id="@+id/btn_request_permissions"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="授予权限"
+				android:backgroundTint="@color/purple_500"
+				android:layout_marginTop="24dp"
+				app:layout_constraintTop_toBottomOf="@id/tv_permission_message"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"/>
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
