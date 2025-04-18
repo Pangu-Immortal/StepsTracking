@@ -1,54 +1,40 @@
 package com.example.stepstracking
 
-import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.time.TimeRangeFilter
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.Observer
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
+import kotlinx.coroutines.withContext
 
-/**
- * 步数跟踪服务
- *
- * 提供常驻通知栏显示当前步数情况
- * 定期从Health Connect读取步数数据并更新通知
- */
-class StepsTrackingService : Service() {
-
+class StepsTrackingService : Service(), SensorEventListener {
     companion object {
         private const val TAG = "StepsTrackingService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "steps_tracking_channel"
         private const val CHANNEL_NAME = "步数跟踪"
-        private const val UPDATE_INTERVAL = 5000L // 5秒更新一次
-
-        // 启动服务的便捷方法
+        private const val UPDATE_INTERVAL = 3 * 1000L
         fun startService(context: Context) {
             val intent = Intent(context, StepsTrackingService::class.java)
             context.startService(intent)
         }
-
-        // 停止服务的便捷方法
         fun stopService(context: Context) {
             val intent = Intent(context, StepsTrackingService::class.java)
             context.stopService(intent)
@@ -56,47 +42,52 @@ class StepsTrackingService : Service() {
     }
 
     private lateinit var notificationManager: NotificationManager
-    private var currentSteps = 0
-    private var goalSteps = 6000 // 默认目标步数
-    private var updateJob: Job? = null
-    private lateinit var stepsRepository: StepsRepository
-    private var stepsObserver: Observer<Int>? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var isUpdateTaskActive = false
+    private lateinit var sensorManager: SensorManager
+    private var stepCounterSensor: Sensor? = null
+    private var initialSteps: Float = 0f
+    private var currentSteps: Float = 0f
+    private var isFirstSensorReading = true
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private val updateRunnable = object : Runnable {
+        override fun run() {
+            Log.d(TAG, "定时更新步数...")
+            serviceScope.launch {
+                try {
+                    updateNotificationFromRepository()
+                } catch (e: Exception) {
+                    Log.e(TAG, "更新步数失败: ${e.message}", e)
+                }
+            }
+            handler.postDelayed(this, UPDATE_INTERVAL)
+            isUpdateTaskActive = true
+        }
+    }
 
-    @SuppressLint("ForegroundServiceType")
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "服务创建")
-
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
-
-        // 初始化仓库
-        stepsRepository = StepsRepository.getInstance(this)
-
-        // 观察仓库数据变化
-        observeRepositoryData()
-
-        // 创建初始通知
-        val notification = createNotification(0, goalSteps)
+        initializeSensorManager()
+        val stepsRepository = StepsRepository.getInstance(this)
+        val initialSteps = stepsRepository.todaySteps.value ?: 0
+        val goalSteps = stepsRepository.goalSteps.value ?: 6000
+        val notification = createNotification(initialSteps, goalSteps)
         startForeground(NOTIFICATION_ID, notification)
-
-        // 开始定期更新步数
-        startStepsUpdates()
+        handler.postDelayed(updateRunnable, UPDATE_INTERVAL)
+        isUpdateTaskActive = true
     }
 
-    // 观察仓库数据变化
-    private fun observeRepositoryData() {
-        // 创建观察者并保存引用
-        stepsObserver = Observer<Int> { steps -> // 更新通知
-            currentSteps = steps
-            val notification = createNotification(currentSteps, goalSteps)
-            notificationManager.notify(NOTIFICATION_ID, notification)
-            Log.d(TAG, "通知已更新，新步数: $steps")
-        }
-
-        // 获取仓库中的LiveData并添加观察者
-        stepsObserver?.let {
-            stepsRepository.todaySteps.observeForever(it)
+    private fun initializeSensorManager() {
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        stepCounterSensor?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            Log.d(TAG, "步数传感器注册成功")
+        } ?: run {
+            Log.e(TAG, "设备不支持步数传感器")
         }
     }
 
@@ -114,12 +105,10 @@ class StepsTrackingService : Service() {
         }
     }
 
-    private fun createNotification(steps: Int, goal: Int): android.app.Notification {
-        // 创建点击通知时打开的Intent
+    private fun createNotification(steps: Int, goal: Int): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-
         val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.getActivity(
                 this, 0, intent,
@@ -131,16 +120,10 @@ class StepsTrackingService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
         }
-
-        // 计算进度百分比
         val progress = ((steps.toFloat() / goal) * 100).toInt().coerceIn(0, 100)
-
-        // 计算卡路里（简单估算：每1000步约消耗40千卡）
         val calories = (steps * 0.04).toFloat()
-
-        // 构建通知
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_directions) // 使用系统内置图标作为临时替代
+            .setSmallIcon(android.R.drawable.ic_menu_directions)
             .setContentTitle("远足沙发")
             .setContentText("还剩 ${goal - steps} 步")
             .setProgress(100, progress, false)
@@ -152,62 +135,76 @@ class StepsTrackingService : Service() {
             .build()
     }
 
-    private fun startStepsUpdates() {
-        // 取消之前的任务
-        updateJob?.cancel()
-
-        // 创建新的更新任务
-        updateJob = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-            while (true) {
-                try {
-                    Log.d(TAG, "尝试更新步数数据...")
-                    updateStepsFromHealthConnect()
-                } catch (e: Exception) {
-                    Log.e(TAG, "更新步数失败: ${e.message}", e)
-                }
-                delay(UPDATE_INTERVAL)
-            }
-        }
-    }
-
-    private fun updateStepsFromHealthConnect() {
-        try {
-            stepsRepository.refreshStepsData()
-            Log.d(TAG, "通过仓库更新步数数据")
-        } catch (e: Exception) {
-            Log.e(TAG, "刷新步数数据失败: ${e.message}")
-            throw e
+    private suspend fun updateNotificationFromRepository() {
+        Log.d(TAG, "从仓库获取步数数据并更新通知")
+        val stepsRepository = StepsRepository.getInstance(this)
+        val currentSteps = stepsRepository.todaySteps.value ?: 0
+        val goalSteps = stepsRepository.goalSteps.value ?: 6000
+        Log.d(TAG, "仓库中的当前步数: $currentSteps")
+        withContext(Dispatchers.Main) {
+            val notification = createNotification(currentSteps, goalSteps)
+            notificationManager.notify(NOTIFICATION_ID, notification)
+            Log.d(TAG, "通知已更新: 步数=$currentSteps")
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "服务onStartCommand被调用")
-
-        // 如果更新任务未启动，则启动它
-        if (updateJob == null || updateJob?.isActive == false) {
-            Log.d(TAG, "更新任务未运行，重新启动...")
-            startStepsUpdates()
+        val isCallbackActive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            handler.hasCallbacks(updateRunnable)
+        } else {
+            isUpdateTaskActive
         }
-
+        if (!isCallbackActive) {
+            handler.postDelayed(updateRunnable, UPDATE_INTERVAL)
+            isUpdateTaskActive = true
+        }
+        if (stepCounterSensor != null && !isListenerRegistered()) {
+            sensorManager.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_UI)
+            Log.d(TAG, "重新注册步数传感器监听器")
+        }
         return START_STICKY
+    }
+
+    private fun isListenerRegistered(): Boolean {
+        return try {
+            sensorManager.getSensorList(Sensor.TYPE_ALL).isNotEmpty()
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "服务销毁")
-
-        // 安全移除观察者
-        stepsObserver?.let {
-            stepsRepository.todaySteps.removeObserver(it)
-        }
-        stepsObserver = null
-
-        // 取消更新任务
-        updateJob?.cancel()
-        updateJob = null
+        handler.removeCallbacks(updateRunnable)
+        isUpdateTaskActive = false
+        serviceScope.cancel()
+        sensorManager.unregisterListener(this)
     }
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type != Sensor.TYPE_STEP_COUNTER) return
+        val steps = event.values[0]
+        Log.d(TAG, "传感器步数更新: $steps")
+        if (isFirstSensorReading) {
+            initialSteps = steps
+            isFirstSensorReading = false
+            Log.d(TAG, "初始步数设置为: $initialSteps")
+        }
+        currentSteps = steps - initialSteps
+        if (currentSteps < 0) currentSteps = 0f
+        val stepsRepository = StepsRepository.getInstance(this)
+        stepsRepository.updateSensorSteps(currentSteps.toInt())
+        Log.d(TAG, "更新后的步数: ${currentSteps.toInt()}")
+        serviceScope.launch {
+            updateNotificationFromRepository()
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 }

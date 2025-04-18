@@ -2,74 +2,40 @@ package com.example.stepstracking
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.lifecycleScope
 import com.example.stepstracking.databinding.ActivityHealthBinding
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/**
- * 健康步数活动
- *
- * 主要功能：
- * 1. 从HealthConnect读取步数数据并在界面上显示
- * 2. 支持HealthConnect API
- * 3. 提供完整的错误处理和用户交互
- * 4. 使用ViewBinding和ConstraintLayout实现现代UI
- *
- * 适配说明：
- * - 支持Android 7-15的所有版本
- * - 使用最新的Health Connect客户端API
- * - 针对不同场景提供具体错误提示
- * - 针对Android 15的权限请求机制特别适配
- */
 class HealthStepsActivity : AppCompatActivity() {
 	private val TAG = "HealthStepsActivity"
-
-	// 使用ViewBinding
 	private lateinit var binding: ActivityHealthBinding
-
-	// 健康权限集合
 	private val healthPermissions = setOf(
 		HealthPermission.getReadPermission(StepsRecord::class),
 		HealthPermission.getWritePermission(StepsRecord::class)
 	)
-
-	// Health Connect设置启动器
 	private val healthConnectSettingsLauncher = registerForActivityResult(
 		ActivityResultContracts.StartActivityForResult()
 	) {
-		// 从Health Connect设置返回后，重新检查权限
 		checkPermissions()
 	}
-
-	// 用于数据获取的协程Job，便于在生命周期结束时取消
 	private var fetchJob: Job? = null
-
-	// 错误处理器
 	private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
 		Log.e(TAG, "协程异常: ${exception.message}")
 		lifecycleScope.launch(Dispatchers.Main) {
@@ -79,58 +45,28 @@ class HealthStepsActivity : AppCompatActivity() {
 			binding.btnRetry.visibility = View.VISIBLE
 		}
 	}
-
-	// 是否正在请求权限标志
 	private var isRequestingPermissions = false
-
 	private lateinit var stepsRepository: StepsRepository
-
-
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
-
-		// 初始化ViewBinding
 		binding = ActivityHealthBinding.inflate(layoutInflater)
 		setContentView(binding.root)
 
-		// 设置初始UI状态
 		setupInitialUI()
-
-		// 设置返回按钮
-		binding.toolbar.setNavigationOnClickListener {
-			finish()
-		}
-
-		// 设置重试按钮
-		binding.btnRetry.setOnClickListener {
-			checkHealthConnectAvailability()
-		}
-
-		// 设置权限请求按钮
-		binding.btnRequestPermissions.setOnClickListener {
-			requestHealthConnectPermissions()
-		}
-
-		// 检查Health Connect可用性
+		binding.toolbar.setNavigationOnClickListener { finish() }
+		binding.btnRetry.setOnClickListener { checkHealthConnectAvailability() }
+		binding.btnRequestPermissions.setOnClickListener { requestHealthConnectPermissions() }
 		checkHealthConnectAvailability()
-
-		// 初始化仓库
 		stepsRepository = StepsRepository.getInstance(this)
-
-		// 观察仓库数据
 		stepsRepository.todaySteps.observe(this) { steps ->
 			binding.tvSteps.text = "$steps"
-			// 更新进度环
 			val progress = if (steps <= 10000) (steps / 10000.0 * 100).toInt() else 100
 			binding.progressCircular.progress = progress
 			binding.progressLoading.visibility = View.GONE
 		}
 	}
 
-	/**
-	 * 设置初始UI状态
-	 */
 	private fun setupInitialUI() {
 		binding.tvSteps.text = "准备获取步数数据..."
 		binding.progressLoading.visibility = View.VISIBLE
@@ -138,15 +74,10 @@ class HealthStepsActivity : AppCompatActivity() {
 		binding.btnRetry.visibility = View.GONE
 		binding.cardPermissions.visibility = View.GONE
 		binding.tvStepsLabel.visibility = View.GONE
-
-		// 设置日期
 		val dateFormatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日")
 		binding.tvDate.text = LocalDate.now().format(dateFormatter)
 	}
 
-	/**
-	 * 检查Health Connect是否可用
-	 */
 	private fun checkHealthConnectAvailability() {
 		Log.d(TAG, "检查Health Connect可用性")
 		binding.progressLoading.visibility = View.VISIBLE
@@ -185,9 +116,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		}
 	}
 
-	/**
-	 * 检查应用是否有所需的健康数据权限
-	 */
 	private fun checkPermissions() {
 		Log.d(TAG, "检查Health Connect权限")
 
@@ -197,14 +125,10 @@ class HealthStepsActivity : AppCompatActivity() {
 				val granted = client.permissionController.getGrantedPermissions()
 
 				if (granted.containsAll(healthPermissions)) {
-					// 已有所需权限，开始获取步数
 					Log.d(TAG, "已有所需健康数据权限")
 					binding.cardPermissions.visibility = View.GONE
 					startFetchingSteps()
-					// 启动步数跟踪服务
-					startStepsTrackingService()
 				} else {
-					// 需要请求权限
 					Log.d(TAG, "需要请求健康数据权限")
 					showRequestPermissionsUI()
 				}
@@ -215,20 +139,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		}
 	}
 
-	private fun startStepsTrackingService() {
-		Log.d(TAG, "尝试启动步数跟踪服务")
-		try {
-			StepsTrackingService.startService(this)
-			Toast.makeText(this, "步数跟踪服务已启动", Toast.LENGTH_SHORT).show()
-		} catch (e: Exception) {
-			Log.e(TAG, "启动步数跟踪服务失败", e)
-			Toast.makeText(this, "启动步数跟踪服务失败: ${e.message}", Toast.LENGTH_SHORT).show()
-		}
-	}
-
-	/**
-	 * 显示请求权限的UI
-	 */
 	private fun showRequestPermissionsUI() {
 		binding.progressLoading.visibility = View.GONE
 		binding.tvError.visibility = View.GONE
@@ -239,9 +149,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		binding.btnRequestPermissions.text = "授予权限"
 	}
 
-	/**
-	 * 显示权限被拒绝的UI
-	 */
 	private fun showPermissionDeniedUI() {
 		binding.progressLoading.visibility = View.GONE
 		binding.tvError.visibility = View.GONE
@@ -251,7 +158,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		binding.tvPermissionMessage.text = "需要健康数据权限才能显示步数信息。请前往Health Connect应用手动授予权限。"
 		binding.btnRequestPermissions.text = "打开设置"
 
-		// 显示对话框提醒用户
 		AlertDialog.Builder(this)
 			.setTitle("权限请求")
 			.setMessage("需要健康数据权限才能显示步数信息。您可以在Health Connect应用中手动授予此权限。")
@@ -261,9 +167,6 @@ class HealthStepsActivity : AppCompatActivity() {
 			.show()
 	}
 
-	/**
-	 * 显示安装Health Connect的对话框
-	 */
 	private fun showInstallHealthConnectDialog() {
 		binding.progressLoading.visibility = View.GONE
 
@@ -281,9 +184,6 @@ class HealthStepsActivity : AppCompatActivity() {
 			.show()
 	}
 
-	/**
-	 * 显示更新Health Connect的对话框
-	 */
 	private fun showUpdateHealthConnectDialog() {
 		binding.progressLoading.visibility = View.GONE
 
@@ -301,9 +201,6 @@ class HealthStepsActivity : AppCompatActivity() {
 			.show()
 	}
 
-	/**
-	 * 显示通用错误UI
-	 */
 	private fun showGenericErrorUI(message: String) {
 		binding.progressLoading.visibility = View.GONE
 		binding.tvError.visibility = View.VISIBLE
@@ -312,11 +209,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		binding.cardPermissions.visibility = View.GONE
 	}
 
-	/**
-	 * 打开Health Connect设置页面
-	 * 这是适配Android 15的关键部分 - 不再使用createRequestPermissionResultContract
-	 * 而是直接打开Health Connect设置让用户手动授权
-	 */
 	private fun openHealthConnectSettings() {
 		try {
 			Log.d(TAG, "打开Health Connect设置页面")
@@ -327,7 +219,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		} catch (e: Exception) {
 			Log.e(TAG, "打开Health Connect设置失败: ${e.message}")
 
-			// 尝试打开应用详情页
 			try {
 				val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
 					data = Uri.parse("package:com.google.android.apps.healthdata")
@@ -344,32 +235,22 @@ class HealthStepsActivity : AppCompatActivity() {
 		}
 	}
 
-	/**
-	 * 请求Health Connect权限
-	 * 针对Android 15的适配版本 - 直接打开Health Connect设置页面
-	 */
 	private fun requestHealthConnectPermissions() {
 		Log.d(TAG, "请求Health Connect权限")
 		isRequestingPermissions = true
 		binding.progressLoading.visibility = View.VISIBLE
-
-		// 打开Health Connect设置页面
 		openHealthConnectSettings()
 	}
 
-	/**
-	 * 打开Play商店安装Health Connect
-	 */
 	private fun promptUserToInstallHealthConnect() {
 		val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
 			data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
-			setPackage("com.android.vending") // 确保在Google Play商店打开
+			setPackage("com.android.vending")
 		}
 
 		if (playStoreIntent.resolveActivity(packageManager) != null) {
 			startActivity(playStoreIntent)
 		} else {
-			// 如果Play商店不可用，使用浏览器打开
 			val browserIntent = Intent(Intent.ACTION_VIEW).apply {
 				data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
 			}
@@ -377,9 +258,6 @@ class HealthStepsActivity : AppCompatActivity() {
 		}
 	}
 
-	/**
-	 * 开始获取步数数据
-	 */
 	private fun startFetchingSteps() {
 		Log.d(TAG, "开始获取步数数据")
 		binding.tvSteps.text = "正在获取步数数据..."
@@ -387,44 +265,17 @@ class HealthStepsActivity : AppCompatActivity() {
 		binding.tvError.visibility = View.GONE
 		binding.btnRetry.visibility = View.GONE
 
-		// 取消之前的任务
 		fetchJob?.cancel()
-
-		// 启动新的获取任务
-		fetchJob = lifecycleScope.launch(exceptionHandler) {
-			while (isActive) {
-				readStepData()
-				// 每5秒刷新一次数据
-				delay(5000)
-			}
-		}
-	}
-
-	/**
-	 * 从Health Connect读取步数数据
-	 */
-	private fun readStepData() {
 		stepsRepository.refreshStepsData()
 	}
 
 	override fun onResume() {
 		super.onResume()
-
-		// 如果不是正在请求权限，检查Health Connect可用性
-		if (!isRequestingPermissions) {
-			Log.d(TAG, "onResume: 重新检查Health Connect可用性")
-			checkHealthConnectAvailability()
-		} else {
-			// 如果是从权限请求页面返回，检查权限
-			isRequestingPermissions = false
-			checkPermissions()
-		}
+		checkHealthConnectAvailability()
 	}
 
 	override fun onDestroy() {
 		super.onDestroy()
-
-		// 取消所有正在进行的协程任务
 		fetchJob?.cancel()
 	}
 }
