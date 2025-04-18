@@ -11,17 +11,19 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.Observer
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -31,7 +33,7 @@ import java.time.ZoneId
  * 提供常驻通知栏显示当前步数情况
  * 定期从Health Connect读取步数数据并更新通知
  */
-class StepsTrackingService : LifecycleService() {
+class StepsTrackingService : Service() {
 
     companion object {
         private const val TAG = "StepsTrackingService"
@@ -43,9 +45,7 @@ class StepsTrackingService : LifecycleService() {
         // 启动服务的便捷方法
         fun startService(context: Context) {
             val intent = Intent(context, StepsTrackingService::class.java)
-            // 对于所有版本都使用普通 startService
             context.startService(intent)
-            // 不再区分版本使用 startForegroundService，因为可能导致兼容性问题
         }
 
         // 停止服务的便捷方法
@@ -58,6 +58,9 @@ class StepsTrackingService : LifecycleService() {
     private lateinit var notificationManager: NotificationManager
     private var currentSteps = 0
     private var goalSteps = 6000 // 默认目标步数
+    private var updateJob: Job? = null
+    private lateinit var stepsRepository: StepsRepository
+    private var stepsObserver: Observer<Int>? = null
 
     @SuppressLint("ForegroundServiceType")
     override fun onCreate() {
@@ -67,12 +70,34 @@ class StepsTrackingService : LifecycleService() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
 
+        // 初始化仓库
+        stepsRepository = StepsRepository.getInstance(this)
+
+        // 观察仓库数据变化
+        observeRepositoryData()
+
         // 创建初始通知
         val notification = createNotification(0, goalSteps)
         startForeground(NOTIFICATION_ID, notification)
 
         // 开始定期更新步数
         startStepsUpdates()
+    }
+
+    // 观察仓库数据变化
+    private fun observeRepositoryData() {
+        // 创建观察者并保存引用
+        stepsObserver = Observer<Int> { steps -> // 更新通知
+            currentSteps = steps
+            val notification = createNotification(currentSteps, goalSteps)
+            notificationManager.notify(NOTIFICATION_ID, notification)
+            Log.d(TAG, "通知已更新，新步数: $steps")
+        }
+
+        // 获取仓库中的LiveData并添加观察者
+        stepsObserver?.let {
+            stepsRepository.todaySteps.observeForever(it)
+        }
     }
 
     private fun createNotificationChannel() {
@@ -115,7 +140,7 @@ class StepsTrackingService : LifecycleService() {
 
         // 构建通知
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // 请替换为您的步数图标
+            .setSmallIcon(android.R.drawable.ic_menu_directions) // 使用系统内置图标作为临时替代
             .setContentTitle("远足沙发")
             .setContentText("还剩 ${goal - steps} 步")
             .setProgress(100, progress, false)
@@ -128,59 +153,61 @@ class StepsTrackingService : LifecycleService() {
     }
 
     private fun startStepsUpdates() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            while (isActive) {
+        // 取消之前的任务
+        updateJob?.cancel()
+
+        // 创建新的更新任务
+        updateJob = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+            while (true) {
                 try {
+                    Log.d(TAG, "尝试更新步数数据...")
                     updateStepsFromHealthConnect()
                 } catch (e: Exception) {
-                    Log.e(TAG, "更新步数失败", e)
+                    Log.e(TAG, "更新步数失败: ${e.message}", e)
                 }
                 delay(UPDATE_INTERVAL)
             }
         }
     }
 
-    private suspend fun updateStepsFromHealthConnect() {
+    private fun updateStepsFromHealthConnect() {
         try {
-            val client = HealthConnectClient.getOrCreate(this)
-
-            // 获取今天的时间范围
-            val today = java.time.LocalDate.now()
-            val startTime = today.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
-            val endTime = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()
-
-            // 请求今天的步数记录
-            val request = ReadRecordsRequest(
-                recordType = StepsRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
-            )
-
-            val response = client.readRecords(request)
-
-            // 计算总步数
-            val totalSteps = response.records.sumOf { it.count.toInt() }
-
-            if (totalSteps != currentSteps) {
-                currentSteps = totalSteps
-
-                // 更新通知
-                withContext(Dispatchers.Main) {
-                    val notification = createNotification(currentSteps, goalSteps)
-                    notificationManager.notify(NOTIFICATION_ID, notification)
-                }
-            }
+            stepsRepository.refreshStepsData()
+            Log.d(TAG, "通过仓库更新步数数据")
         } catch (e: Exception) {
-            Log.e(TAG, "从Health Connect读取步数失败", e)
+            Log.e(TAG, "刷新步数数据失败: ${e.message}")
+            throw e
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
+        Log.d(TAG, "服务onStartCommand被调用")
+
+        // 如果更新任务未启动，则启动它
+        if (updateJob == null || updateJob?.isActive == false) {
+            Log.d(TAG, "更新任务未运行，重新启动...")
+            startStepsUpdates()
+        }
+
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "服务销毁")
+
+        // 安全移除观察者
+        stepsObserver?.let {
+            stepsRepository.todaySteps.removeObserver(it)
+        }
+        stepsObserver = null
+
+        // 取消更新任务
+        updateJob?.cancel()
+        updateJob = null
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
     }
 }

@@ -41,10 +41,10 @@ import java.time.format.DateTimeFormatter
  * 4. 使用ViewBinding和ConstraintLayout实现现代UI
  *
  * 适配说明：
- * - 支持Android 7-35的所有版本
+ * - 支持Android 7-15的所有版本
  * - 使用最新的Health Connect客户端API
  * - 针对不同场景提供具体错误提示
- * - 针对Android 35的权限请求机制特别适配
+ * - 针对Android 15的权限请求机制特别适配
  */
 class HealthStepsActivity : AppCompatActivity() {
 	private val TAG = "HealthStepsActivity"
@@ -83,6 +83,10 @@ class HealthStepsActivity : AppCompatActivity() {
 	// 是否正在请求权限标志
 	private var isRequestingPermissions = false
 
+	private lateinit var stepsRepository: StepsRepository
+
+
+
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 
@@ -110,6 +114,18 @@ class HealthStepsActivity : AppCompatActivity() {
 
 		// 检查Health Connect可用性
 		checkHealthConnectAvailability()
+
+		// 初始化仓库
+		stepsRepository = StepsRepository.getInstance(this)
+
+		// 观察仓库数据
+		stepsRepository.todaySteps.observe(this) { steps ->
+			binding.tvSteps.text = "$steps"
+			// 更新进度环
+			val progress = if (steps <= 10000) (steps / 10000.0 * 100).toInt() else 100
+			binding.progressCircular.progress = progress
+			binding.progressLoading.visibility = View.GONE
+		}
 	}
 
 	/**
@@ -186,7 +202,7 @@ class HealthStepsActivity : AppCompatActivity() {
 					binding.cardPermissions.visibility = View.GONE
 					startFetchingSteps()
 					// 启动步数跟踪服务
-					StepsTrackingService.startService(this@HealthStepsActivity)
+					startStepsTrackingService()
 				} else {
 					// 需要请求权限
 					Log.d(TAG, "需要请求健康数据权限")
@@ -196,6 +212,17 @@ class HealthStepsActivity : AppCompatActivity() {
 				Log.e(TAG, "检查权限失败: ${e.message}")
 				showGenericErrorUI("无法连接健康数据服务")
 			}
+		}
+	}
+
+	private fun startStepsTrackingService() {
+		Log.d(TAG, "尝试启动步数跟踪服务")
+		try {
+			StepsTrackingService.startService(this)
+			Toast.makeText(this, "步数跟踪服务已启动", Toast.LENGTH_SHORT).show()
+		} catch (e: Exception) {
+			Log.e(TAG, "启动步数跟踪服务失败", e)
+			Toast.makeText(this, "启动步数跟踪服务失败: ${e.message}", Toast.LENGTH_SHORT).show()
 		}
 	}
 
@@ -287,7 +314,7 @@ class HealthStepsActivity : AppCompatActivity() {
 
 	/**
 	 * 打开Health Connect设置页面
-	 * 这是适配Android 35的关键部分 - 不再使用createRequestPermissionResultContract
+	 * 这是适配Android 15的关键部分 - 不再使用createRequestPermissionResultContract
 	 * 而是直接打开Health Connect设置让用户手动授权
 	 */
 	private fun openHealthConnectSettings() {
@@ -319,7 +346,7 @@ class HealthStepsActivity : AppCompatActivity() {
 
 	/**
 	 * 请求Health Connect权限
-	 * 针对Android 35的适配版本 - 直接打开Health Connect设置页面
+	 * 针对Android 15的适配版本 - 直接打开Health Connect设置页面
 	 */
 	private fun requestHealthConnectPermissions() {
 		Log.d(TAG, "请求Health Connect权限")
@@ -377,48 +404,7 @@ class HealthStepsActivity : AppCompatActivity() {
 	 * 从Health Connect读取步数数据
 	 */
 	private fun readStepData() {
-		lifecycleScope.launch(Dispatchers.IO + exceptionHandler) {
-			try {
-				val client = HealthConnectClient.getOrCreate(this@HealthStepsActivity)
-
-				// 获取今天的时间范围
-				val today = LocalDate.now()
-				val startTime = today.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
-				val endTime = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant()
-
-				// 请求今天的步数记录
-				val request = ReadRecordsRequest(
-					recordType = StepsRecord::class,
-					timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
-				)
-
-				val response = client.readRecords(request)
-
-				// 计算总步数
-				val totalSteps = response.records.sumOf { it.count }
-
-				// 在主线程更新UI
-				withContext(Dispatchers.Main) {
-					binding.tvSteps.text = "$totalSteps"
-					binding.progressLoading.visibility = View.GONE
-					binding.tvStepsLabel.visibility = View.VISIBLE
-
-					// 更新进度环
-					val progress = if (totalSteps <= 10000) (totalSteps / 10000.0 * 100).toInt() else 100
-					binding.progressCircular.progress = progress
-				}
-
-				Log.d(TAG, "成功获取今日步数: $totalSteps")
-			} catch (e: Exception) {
-				Log.e(TAG, "读取步数数据失败: ${e.message}")
-				withContext(Dispatchers.Main) {
-					binding.progressLoading.visibility = View.GONE
-					binding.tvError.visibility = View.VISIBLE
-					binding.tvError.text = "读取步数数据失败: ${e.localizedMessage}"
-					binding.btnRetry.visibility = View.VISIBLE
-				}
-			}
-		}
+		stepsRepository.refreshStepsData()
 	}
 
 	override fun onResume() {
