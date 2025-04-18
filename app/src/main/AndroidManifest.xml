@@ -41,8 +41,7 @@
 			android:name=".HealthStepsActivity"
 			android:screenOrientation="portrait" />
 
-		<!-- For supported versions through Android 13, create an activity to show the rationale
-       of Health Connect permissions once users click the privacy policy link. -->
+		<!-- 对于通过 Android 13 支持的版本，请创建一个活动，以便在用户点击隐私权政策链接后显示 Health Connect 权限的基本原理 -->
 		<activity
 			android:name=".PermissionsRationaleActivity"
 			android:exported="true">

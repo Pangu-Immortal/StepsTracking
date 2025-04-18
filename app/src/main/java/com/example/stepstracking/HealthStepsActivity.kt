@@ -4,10 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.PermissionController.Companion.createRequestPermissionResultContract
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -20,81 +19,120 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
 
-/**
- * Activity to read the steps data from HealthConnect and display it on the screen.
- * The user can view the steps taken from the Health app.
- *
- * It was tested on the Google Fit. HealthConnect app acts as a bridge between the app and Google Fit.
- * It can be used with other health apps that support the HealthConnect API.
- *
- * The user can install HealthConnect from the Play Store if it is not available on the device. The prompt will be shown.
- * Google Fit writes data to the HealthConnect in different time intervals. The app reads the data in cycles of 5 seconds just for testing purposes.
- *
- * The manifest contains the following permissions:
- * <uses-permission android:name="android.permission.health.READ_STEPS"/>
- * 	<uses-permission android:name="android.permission.health.WRITE_STEPS"/>
- *
- * 	<queries>
- * 		<!-- Add Health Connect package to queries -->
- * 		<package android:name="com.google.android.apps.healthdata" />
- * 	</queries>
- * */
 class HealthStepsActivity : AppCompatActivity() {
 	private lateinit var binding: ActivityHealthBinding
-
-	private lateinit var permissionsLauncher: ActivityResultLauncher<Set<String>>
 
 	val PERMISSIONS = setOf(
 		HealthPermission.getReadPermission(StepsRecord::class),
 		HealthPermission.getWritePermission(StepsRecord::class)
 	)
 
-//	private val requiredPermissions = setOf("android.permission.health.READ_STEPS")
+	// 使用正确的ActivityResultContracts来处理多个权限请求
+	private val requestPermissions =
+		registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+			// 检查是否所有权限都已授予
+			val allGranted = permissions.entries.all { it.value }
+			if (allGranted) {
+				startFetchingSteps()
+			} else {
+				Toast.makeText(this, "Health Connect权限被拒绝", Toast.LENGTH_SHORT).show()
+			}
+		}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		binding = ActivityHealthBinding.inflate(layoutInflater)
 		setContentView(binding.root)
 
-		// Register the launcher
-		permissionsLauncher = registerForActivityResult(createRequestPermissionResultContract()) { grantedPermissions ->
-			// Check if all required permissions are granted
-			if (grantedPermissions.containsAll(PERMISSIONS)) {
-				// All required permissions are granted
-				startFetchingSteps()
-			} else {
-				// Permissions were denied
-				Toast.makeText(this, "Health Connect permissions denied", Toast.LENGTH_SHORT).show()
+		// 检查并请求权限
+		checkHealthConnectAvailability()
+	}
+
+	private fun checkHealthConnectAvailability() {
+		// 检查Health Connect状态
+		val availabilityStatus = HealthConnectClient.sdkStatus(this, "com.google.android.apps.healthdata")
+
+		when (availabilityStatus) {
+			HealthConnectClient.SDK_AVAILABLE -> {
+				// Health Connect可用，检查权限
+				checkHealthConnectPermissions()
+			}
+			HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
+				// 需要更新Health Connect
+				Toast.makeText(this, "需要更新Health Connect", Toast.LENGTH_SHORT).show()
+				val uriString = "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
+				startActivity(
+					Intent(Intent.ACTION_VIEW).apply {
+						setPackage("com.android.vending")
+						data = Uri.parse(uriString)
+						putExtra("overlay", true)
+						putExtra("callerId", packageName)
+					}
+				)
+			}
+			else -> {
+				// Health Connect不可用，引导用户安装
+				promptUserToInstallHealthConnect()
 			}
 		}
-
-		// Request permissions
-		requestHealthConnectPermissions()
-
-//		checkMe()
 	}
 
+	private fun checkHealthConnectPermissions() {
+		try {
+			val client = HealthConnectClient.getOrCreate(this)
 
-	private fun checkHealthConnectAvailability(): Boolean {
-		val intent = Intent("androidx.health.ACTION_REQUEST_PERMISSIONS").apply {
-			`package` = "com.google.android.apps.healthdata"
+			lifecycleScope.launch {
+				try {
+					// 检查Health Connect是否已安装
+					val availabilityStatus = HealthConnectClient.sdkStatus(this@HealthStepsActivity, "com.google.android.apps.healthdata")
+					if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE) {
+						promptUserToInstallHealthConnect()
+						return@launch
+					}
+
+					// 使用新的Health Connect权限请求方式
+					// 1. 创建权限请求Intent
+					val intent = Intent("androidx.health.ACTION_HEALTH_CONNECT_PERMISSIONS").apply {
+						putExtra("androidx.health.EXTRA_PERMISSIONS", PERMISSIONS.toList().toTypedArray())
+						putExtra("androidx.health.EXTRA_FROM_PERMISSIONS_REQUEST", true)
+					}
+
+					// 2. 启动intent以请求权限
+					startActivity(intent)
+
+					// 3. 权限可能在Activity回到前台后发生变化，所以在onResume中检查权限状态
+				} catch (e: Exception) {
+					e.printStackTrace()
+					Toast.makeText(this@HealthStepsActivity, "检查权限失败: ${e.message}", Toast.LENGTH_SHORT).show()
+				}
+			}
+		} catch (e: Exception) {
+			e.printStackTrace()
+			Toast.makeText(this, "无法连接到Health Connect: ${e.message}", Toast.LENGTH_SHORT).show()
 		}
-		val resolveInfo = packageManager.resolveActivity(intent, 0)
-		return resolveInfo != null
 	}
 
-	private fun requestHealthConnectPermissions() {
-		if (checkHealthConnectAvailability()) {
-			permissionsLauncher.launch(PERMISSIONS)
-		} else {
-			promptUserToInstallHealthConnect()
+	override fun onResume() {
+		super.onResume()
+		// 当Activity回到前台时，检查权限状态
+		checkPermissionsAndStartFetching()
+	}
+
+	private fun checkPermissionsAndStartFetching() {
+		lifecycleScope.launch {
+			try {
+				val client = HealthConnectClient.getOrCreate(this@HealthStepsActivity)
+				val grantedPermissions = client.permissionController.getGrantedPermissions()
+
+				if (grantedPermissions.containsAll(PERMISSIONS)) {
+					startFetchingSteps()
+				}
+			} catch (e: Exception) {
+				e.printStackTrace()
+			}
 		}
 	}
 
-	/**
-	 * Opens the Play Store to prompt the user to install HealthConnect. Its needed for Android 13 and below
-	 * HealthConnect is a Google app that acts as a bridge between the app and Google Fit
-	 * */
 	private fun promptUserToInstallHealthConnect() {
 		val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
 			data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
@@ -102,69 +140,46 @@ class HealthStepsActivity : AppCompatActivity() {
 		startActivity(playStoreIntent)
 	}
 
-	/**
-	 * Reads steps data from HealthConnect and updates the UI
-	 * It happens in cycles of 5 seconds
-	 *
-	 * Google Fit was using for testing and it can write data to HealthConnect in different time intervals
-	 * */
 	private fun startFetchingSteps() {
 		lifecycleScope.launch {
-			while (true) {
+			try {
 				readStepData()
-				delay(5000L) // Wait for 5 seconds before fetching again
+				delay(5000L)
+			} catch (e: Exception) {
+				e.printStackTrace()
 			}
 		}
 	}
 
 	private fun readStepData() {
-		val healthConnectClient = HealthConnectClient.getOrCreate(this)
-		lifecycleScope.launch {
-			try {
-				val response = healthConnectClient.readRecords(
-					ReadRecordsRequest(
-						recordType = StepsRecord::class,
-						timeRangeFilter = TimeRangeFilter.between(
-							ZonedDateTime.now().minusDays(1).toInstant(),
-							ZonedDateTime.now().toInstant()
+		try {
+			val healthConnectClient = HealthConnectClient.getOrCreate(this)
+
+			lifecycleScope.launch {
+				try {
+					val response = healthConnectClient.readRecords(
+						ReadRecordsRequest(
+							recordType = StepsRecord::class,
+							timeRangeFilter = TimeRangeFilter.between(
+								ZonedDateTime.now().minusDays(1).toInstant(),
+								ZonedDateTime.now().toInstant()
+							)
 						)
 					)
-				)
-				val totalSteps = response.records.sumOf { it.count }
-				withContext(Dispatchers.Main) {
-					binding.tvSteps.text = "Steps Today: $totalSteps"
-				}
-			} catch (e: Exception) {
-				e.printStackTrace()
-				withContext(Dispatchers.Main) {
-					Toast.makeText(this@HealthStepsActivity, "Failed to read step data", Toast.LENGTH_SHORT).show()
+					val totalSteps = response.records.sumOf { it.count }
+					withContext(Dispatchers.Main) {
+						binding.tvSteps.text = "今日步数: $totalSteps"
+					}
+				} catch (e: Exception) {
+					e.printStackTrace()
+					withContext(Dispatchers.Main) {
+						Toast.makeText(this@HealthStepsActivity, "读取步数数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
+					}
 				}
 			}
+		} catch (e: Exception) {
+			e.printStackTrace()
+			Toast.makeText(this, "无法连接到Health Connect: ${e.message}", Toast.LENGTH_SHORT).show()
 		}
 	}
-
-	/**
-	 * Checks the availability of HealthConnect on the device
-	 * works correctly. Can be used this checking variant
-	 * */
-//	private fun checkMe() {
-//		val providerPackageName = "com.google.android.apps.healthdata"
-//		val availabilityStatus = HealthConnectClient.sdkStatus(this, providerPackageName)
-//		if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE) {
-//			return // early return as there is no viable integration
-//		}
-//		if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-//			// Optionally redirect to package installer to find a provider, for example:
-//			val uriString = "market://details?id=$providerPackageName&url=healthconnect%3A%2F%2Fonboarding"
-//			startActivity(
-//				Intent(Intent.ACTION_VIEW).apply {
-//					setPackage("com.android.vending")
-//					data = Uri.parse(uriString)
-//					putExtra("overlay", true)
-//					putExtra("callerId", packageName)
-//				}
-//			)
-//			return
-//		}
-//	}
 }

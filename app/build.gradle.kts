@@ -61,4 +61,5 @@ dependencies {
 	debugImplementation(libs.androidx.ui.test.manifest)
 
 	implementation(libs.androidx.health.connect)
+	implementation(libs.androidx.activity.ktx)
 }
