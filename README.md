@@ -1,5 +1,7 @@
 # 📱 步数追踪应用 (Steps Tracking App)
 
+📖 [打开英文版说明](https://github.com/Pangu-Immortal/StepsTracking/blob/main/README.en.md)
+
 ## 🚶‍♂️ 项目简介
 
 步数追踪应用是一款基于 Android 平台的健康类应用，用于记录和统计用户的每日步数数据。应用具有简洁的界面设计和高效的数据管理机制，让用户轻松掌握自己的日常活动量。
@@ -85,6 +87,26 @@ app/
 4. 点击"运行"按钮构建并安装应用
 
 > 💡 **提示**：首次运行应用时会请求必要权限，请务必允许以获得完整功能体验。
+
+
+## 📱 应用屏幕截图
+
+<div align="center">
+<table>
+  <tr>
+    <td><img src="img.png" width="250" alt="Main Interface"/></td>
+    <td><img src="img_1.png" width="250" alt="Step Count Display"/></td>
+  </tr>
+  <tr>
+    <td><img src="img_2.png" width="250" alt="Health Connect Integration"/></td>
+    <td><img src="img_3.png" width="250" alt="Weekly Statistics"/></td>
+  </tr>
+  <tr>
+    <td><img src="img_4.png" width="250" alt="Foreground Service Notification"/></td>
+    <td><img src="img_5.png" width="250" alt="Settings Screen"/></td>
+  </tr>
+</table>
+</div>
 
 ## ⚠️ 限制与已知问题
 
