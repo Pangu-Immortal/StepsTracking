@@ -155,6 +155,7 @@
 		app:layout_constraintBottom_toBottomOf="parent">
 
 		<LinearLayout
+			android:id="@+id/cta_report"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
 			android:layout_weight="1"

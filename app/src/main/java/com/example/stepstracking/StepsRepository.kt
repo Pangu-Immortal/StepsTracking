@@ -3,19 +3,9 @@ package com.example.stepstracking
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -69,9 +59,19 @@ class StepsRepository private constructor(private val context: Context) {
     // 日期格式化工具
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
+    // 周步数数据
+    private val _weeklySteps = MutableLiveData<Map<String, Int>>(emptyMap())
+    val weeklySteps: LiveData<Map<String, Int>> = _weeklySteps
+
     init {
         // 应用启动时加载当天步数数据
         loadTodaySteps()
+        // 加载周数据
+        loadWeeklySteps()
+        // 计算平均步数
+        calculateAverageSteps()
+        // 检查日期变更，必要时进行重置
+        checkDateChange()
     }
 
     /**
@@ -98,6 +98,32 @@ class StepsRepository private constructor(private val context: Context) {
      */
     private fun getKeyForDate(date: LocalDate): String {
         return "steps_${date.format(dateFormatter)}"
+    }
+
+    /**
+     * 检查日期变更，必要时进行重置
+     */
+    private fun checkDateChange() {
+        val prefs = getSharedPreferences(context)
+        val lastDateKey = "last_date"
+        val lastDateStr = prefs.getString(lastDateKey, "")
+        val today = LocalDate.now().format(dateFormatter)
+
+        if (lastDateStr != null && lastDateStr.isNotEmpty() && lastDateStr != today) {
+            // 日期已变更，保存昨天的数据并重置今天的数据
+            sensorSteps = 0
+            healthConnectSteps = 0
+            _todaySteps.postValue(0)
+            _calories.postValue(0f)
+
+            // 保存新的日期
+            prefs.edit().putString(lastDateKey, today).apply()
+
+            Log.d(TAG, "日期变更，步数已重置")
+        } else if (lastDateStr.isNullOrEmpty()) {
+            // 首次运行，保存今天的日期
+            prefs.edit().putString(lastDateKey, today).apply()
+        }
     }
 
     /**
@@ -129,10 +155,14 @@ class StepsRepository private constructor(private val context: Context) {
         if (finalSteps != todaySteps.value) {
             _todaySteps.postValue(finalSteps)
             _calories.postValue(finalSteps * 0.04f)
-            _averageSteps.postValue(finalSteps) // 简化版
 
             // 保存步数到SharedPreferences
             saveStepsToPrefs(finalSteps)
+
+            // 更新周数据
+            loadWeeklySteps()
+            // 重新计算平均值
+            calculateAverageSteps()
 
             Log.d(TAG, "传感器步数更新: 传感器步数=$sensorSteps, Health Connect步数=$healthConnectSteps, 最终步数=$finalSteps")
         }
@@ -149,9 +179,9 @@ class StepsRepository private constructor(private val context: Context) {
     }
 
     /**
-     * 获取一周的步数数据
+     * 加载一周的步数数据
      */
-    fun getWeeklySteps(): Map<String, Int> {
+    private fun loadWeeklySteps() {
         val prefs = getSharedPreferences(context)
         val weeklySteps = mutableMapOf<String, Int>()
 
@@ -166,7 +196,26 @@ class StepsRepository private constructor(private val context: Context) {
             weeklySteps[date.toString()] = steps
         }
 
-        return weeklySteps
+        _weeklySteps.postValue(weeklySteps)
+    }
+
+    /**
+     * 获取一周的步数数据
+     */
+    fun getWeeklySteps(): Map<String, Int> {
+        return _weeklySteps.value ?: emptyMap()
+    }
+
+    /**
+     * 计算平均步数
+     */
+    private fun calculateAverageSteps() {
+        val weekData = _weeklySteps.value ?: return
+        if (weekData.isEmpty()) return
+
+        val totalSteps = weekData.values.sum()
+        val averageSteps = totalSteps / weekData.size
+        _averageSteps.postValue(averageSteps)
     }
 
     /**
@@ -177,13 +226,38 @@ class StepsRepository private constructor(private val context: Context) {
         healthConnectSteps = 0
         _todaySteps.postValue(0)
         _calories.postValue(0f)
-        _averageSteps.postValue(0)
 
         // 清除当天步数存储
         val prefs = getSharedPreferences(context)
         val todayKey = getTodayKey()
         prefs.edit().remove(todayKey).apply()
 
+        // 更新周数据和平均值
+        loadWeeklySteps()
+        calculateAverageSteps()
+
         Log.d(TAG, "步数数据已重置")
+    }
+
+    /**
+     * 是否应该重置步数（每日0点）
+     */
+    fun shouldResetSteps(): Boolean {
+        val prefs = getSharedPreferences(context)
+        val lastResetKey = "last_reset_date"
+        val lastResetDate = prefs.getString(lastResetKey, "")
+        val today = LocalDate.now().format(dateFormatter)
+
+        return lastResetDate != today
+    }
+
+    /**
+     * 标记已重置步数
+     */
+    fun markStepsReset() {
+        val prefs = getSharedPreferences(context)
+        val lastResetKey = "last_reset_date"
+        val today = LocalDate.now().format(dateFormatter)
+        prefs.edit().putString(lastResetKey, today).apply()
     }
 }

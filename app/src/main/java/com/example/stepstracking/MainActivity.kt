@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/stepstracking/MainActivity.kt
 package com.example.stepstracking
 
 import android.Manifest
@@ -13,6 +14,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.example.stepstracking.databinding.ActivityMainBinding
 import java.text.DecimalFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -51,6 +54,11 @@ class MainActivity : AppCompatActivity() {
         binding.ctaHealth.setOnClickListener {
             startActivity(Intent(this, HealthStepsActivity::class.java))
         }
+
+        // 添加报告按钮点击事件
+        binding.ctaReport.setOnClickListener {
+            showWeeklyReport()
+        }
     }
 
     private fun setupObservers() {
@@ -61,6 +69,10 @@ class MainActivity : AppCompatActivity() {
         stepsRepository.calories.observe(this, Observer { calories ->
             val decimalFormat = DecimalFormat("0.0")
             binding.tvCaloriesCount.text = decimalFormat.format(calories)
+        })
+
+        stepsRepository.averageSteps.observe(this, Observer { averageSteps ->
+            binding.tvStepsAverage.text = "每日平均值: $averageSteps"
         })
     }
 
@@ -73,8 +85,7 @@ class MainActivity : AppCompatActivity() {
         val progressPercentage = (steps.toFloat() / stepsGoal * 100).toInt().coerceIn(0, 100)
         binding.progressSteps.progress = progressPercentage
         binding.progressBarBottom.progress = progressPercentage
-        binding.tvStepsGoal.text = "/$stepsGoal 步"
-        binding.tvStepsAverage.text = "每日平均值: $steps"
+        binding.tvStepsGoal.text = "$steps/$stepsGoal 步"
     }
 
     private fun checkAndRequestPermission() {
@@ -88,5 +99,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             StepsTrackingService.startService(this)
         }
+    }
+
+    private fun showWeeklyReport() {
+        // 跳转到周报告页面
+        startActivity(Intent(this, WeeklyReportActivity::class.java))
     }
 }

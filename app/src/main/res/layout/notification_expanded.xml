@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="步数跟踪"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="8dp" />
+
+    <!-- 步数信息 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_footsteps"
+            android:contentDescription="步数"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tv_notification_steps_expanded"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            android:textColor="#000000" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="/"
+            android:textSize="16sp"
+            android:textColor="#757575"
+            android:layout_marginStart="4dp" />
+
+        <TextView
+            android:id="@+id/tv_notification_goal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="6000"
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="步"
+            android:textSize="16sp"
+            android:textColor="#757575"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- 进度条 -->
+    <ProgressBar
+        android:id="@+id/progress_notification_expanded"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:progressTint="#4CAF50"
+        android:progress="0"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 卡路里信息 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_fire"
+            android:contentDescription="卡路里"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tv_notification_calories_expanded"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0.0"
+            android:textSize="16sp"
+            android:textColor="#FF5722" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="千卡"
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+</LinearLayout>

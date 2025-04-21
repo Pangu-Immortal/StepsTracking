@@ -9,13 +9,13 @@
 
     <!-- 通知权限 (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
     <!-- Health Connect 权限 -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.WRITE_STEPS" />
 
     <!-- 前台服务健康权限 (Android 13+) -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH"
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_HEALTH"
         tools:node="remove" />
 
     <!-- 查询包信息 -->
@@ -24,18 +24,21 @@
     </queries>
 
 
-
     <application
-        android:allowBackup="true"
         android:name=".StepsTrackingApplication"
+        android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.StepsTracking"
-        tools:targetApi="31">
+        android:theme="@style/Theme.StepsTracking">
+
+        <activity
+            android:name=".WeeklyReportActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <!-- Splash Activity -->
         <activity
@@ -44,6 +47,7 @@
             android:theme="@style/Theme.StepsTracking.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -68,6 +72,7 @@
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity>
+
 
         <!-- Steps Tracking Service -->
         <service

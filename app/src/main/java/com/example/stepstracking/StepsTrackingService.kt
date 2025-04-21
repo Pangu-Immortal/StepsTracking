@@ -1,11 +1,14 @@
+// app/src/main/java/com/example/stepstracking/StepsTrackingService.kt
 package com.example.stepstracking
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -15,13 +18,19 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class StepsTrackingService : Service(), SensorEventListener {
 
@@ -31,6 +40,7 @@ class StepsTrackingService : Service(), SensorEventListener {
         private const val CHANNEL_ID = "steps_tracking_channel"
         private const val CHANNEL_NAME = "步数跟踪"
         private const val UPDATE_INTERVAL = 3 * 1000L // 3秒
+        private const val CHECK_MIDNIGHT_INTERVAL = 60 * 1000L // 1分钟检查一次是否需要重置
 
         // 启动服务的便捷方法
         fun startService(context: Context) {
@@ -73,9 +83,22 @@ class StepsTrackingService : Service(), SensorEventListener {
                 }
             }
 
+            // 检查是否需要重置步数
+            checkDailyReset()
+
             // 安排下一次更新
             handler.postDelayed(this, UPDATE_INTERVAL)
             isUpdateTaskActive = true
+        }
+    }
+
+    // 检查午夜重置任务
+    private val midnightCheckRunnable = object : Runnable {
+        override fun run() {
+            checkDailyReset()
+
+            // 安排下一次检查
+            handler.postDelayed(this, CHECK_MIDNIGHT_INTERVAL)
         }
     }
 
@@ -92,7 +115,8 @@ class StepsTrackingService : Service(), SensorEventListener {
 
         // 创建初始通知
         val stepsRepository = StepsRepository.getInstance(this)
-        val initialSteps = stepsRepository.todaySteps.value ?: 0
+        val initialSteps = stepsRepository.todaySteps.value ?:
+        0
         val goalSteps = stepsRepository.goalSteps.value ?: 6000
         val notification = createNotification(initialSteps, goalSteps)
         startForeground(NOTIFICATION_ID, notification)
@@ -100,6 +124,9 @@ class StepsTrackingService : Service(), SensorEventListener {
         // 启动定期更新
         handler.postDelayed(updateRunnable, UPDATE_INTERVAL)
         isUpdateTaskActive = true
+
+        // 启动午夜检查
+        handler.postDelayed(midnightCheckRunnable, CHECK_MIDNIGHT_INTERVAL)
     }
 
     private fun initializeSensorManager() {
@@ -127,11 +154,14 @@ class StepsTrackingService : Service(), SensorEventListener {
             ).apply {
                 description = "显示步数跟踪信息"
                 setShowBadge(false)
+                enableLights(true)
+                lightColor = Color.GREEN
             }
             notificationManager.createNotificationChannel(channel)
         }
     }
 
+    @SuppressLint("RemoteViewLayout")
     private fun createNotification(steps: Int, goal: Int): android.app.Notification {
         // 创建点击通知时打开的Intent
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -156,20 +186,52 @@ class StepsTrackingService : Service(), SensorEventListener {
         // 计算卡路里（简单估算：每1000步约消耗40千卡）
         val calories = (steps * 0.04).toFloat()
 
-        // 构建通知
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        // 尝试加载自定义通知布局
+        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_directions)
             .setContentTitle("步数跟踪")
-            .setContentText("今日步数: $steps")
+            .setContentText("今日步数: $steps 步 | 卡路里: ${String.format("%.1f", calories)}")
             .setProgress(100, progress, false)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText("${steps}/$goal 步\n\n卡路里: ${String.format("%.1f", calories)}")
-            )
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        // 尝试加载自定义视图
+        try {
+            val collapsedView = RemoteViews(packageName, R.layout.notification_collapsed)
+            collapsedView.setTextViewText(R.id.tv_notification_steps, "$steps")
+            collapsedView.setTextViewText(R.id.tv_notification_calories, String.format("%.1f", calories))
+            collapsedView.setProgressBar(R.id.progress_notification, 100, progress, false)
+            notificationBuilder.setCustomContentView(collapsedView)
+
+            // 只有在确认折叠视图能正确加载时才尝试加载展开视图
+            val expandedView = RemoteViews(packageName, R.layout.notification_expanded)
+            expandedView.setTextViewText(R.id.tv_notification_steps_expanded, "$steps")
+            expandedView.setTextViewText(R.id.tv_notification_goal, "$goal")
+            expandedView.setTextViewText(R.id.tv_notification_calories_expanded, String.format("%.1f", calories))
+            expandedView.setProgressBar(R.id.progress_notification_expanded, 100, progress, false)
+            notificationBuilder.setCustomBigContentView(expandedView)
+        } catch (e: Exception) {
+            // 如果自定义视图加载失败，使用基本通知
+            Log.e(TAG, "自定义通知视图加载失败: ${e.message}")
+        }
+
+        return notificationBuilder.build()
+    }
+
+    /**
+     * 检查是否需要日常重置
+     */
+    private fun checkDailyReset() {
+        val stepsRepository = StepsRepository.getInstance(this)
+
+        // 检查日期是否变更
+        if (stepsRepository.shouldResetSteps()) {
+            Log.d(TAG, "执行每日步数重置")
+            isFirstSensorReading = true
+            stepsRepository.resetSteps()
+            stepsRepository.markStepsReset()
+        }
     }
 
     /**
@@ -235,6 +297,7 @@ class StepsTrackingService : Service(), SensorEventListener {
 
         // 移除定时任务
         handler.removeCallbacks(updateRunnable)
+        handler.removeCallbacks(midnightCheckRunnable)
         isUpdateTaskActive = false
 
         // 取消所有协程
@@ -262,16 +325,13 @@ class StepsTrackingService : Service(), SensorEventListener {
         }
 
         // 计算相对步数
-//        currentSteps = steps - initialSteps
+        currentSteps = (steps - initialSteps).toInt()
         if (currentSteps < 0) currentSteps = 0
-        if (currentSteps < steps) currentSteps = steps.toInt()
 
-        if (currentSteps > 1) {
-            // 更新仓库
-            val stepsRepository = StepsRepository.getInstance(this)
-            stepsRepository.updateSensorSteps(currentSteps)
-            Log.d(TAG, "更新后的步数: ${currentSteps}")
-        }
+        // 更新仓库
+        val stepsRepository = StepsRepository.getInstance(this)
+        stepsRepository.updateSensorSteps(currentSteps)
+        Log.d(TAG, "更新后的步数: ${currentSteps}")
 
         // 更新通知 (可选，这会增加通知更新频率)
         serviceScope.launch {

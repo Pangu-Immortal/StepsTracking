@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="8dp">
+
+    <!-- 步数图标 -->
+    <ImageView
+        android:id="@+id/iv_notification_footsteps"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_footsteps"
+        android:contentDescription="步数" />
+
+    <!-- 步数信息 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="12dp">
+
+        <TextView
+            android:id="@+id/tv_notification_steps"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#000000" />
+
+        <ProgressBar
+            android:id="@+id/progress_notification"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:progressTint="#4CAF50"
+            android:progress="0" />
+    </LinearLayout>
+
+    <!-- 使用Space替代View作为间隔 -->
+<!--    <Space-->
+<!--        android:layout_width="12dp"-->
+<!--        android:layout_height="match_parent" />-->
+
+    <!-- 卡路里图标和信息 -->
+    <ImageView
+        android:id="@+id/iv_notification_fire"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_fire"
+        android:contentDescription="卡路里" />
+
+    <TextView
+        android:id="@+id/tv_notification_calories"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0.0"
+        android:textSize="14sp"
+        android:textColor="#FF5722"
+        android:layout_marginStart="4dp" />
+</LinearLayout>
