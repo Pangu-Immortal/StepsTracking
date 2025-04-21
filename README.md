@@ -1,6 +1,6 @@
 # 📱 步数追踪应用 (Steps Tracking App)
 
-📖 [打开英文版说明](https://github.com/Pangu-Immortal/StepsTracking/blob/main/README.en.md)
+📖 [打开英文版说明 The manual is available in English ](https://github.com/Pangu-Immortal/StepsTracking/blob/main/README.en.md)
 
 ## 🚶‍♂️ 项目简介
 
