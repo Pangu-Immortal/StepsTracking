@@ -6,32 +6,51 @@ Steps Tracking App is a health-focused Android application designed to record an
 
 ## ✨ Key Features
 
-- **📊 Real-time Step Counting**: Records user steps using the device's built-in sensors
-- **🔥 Calorie Calculation**: Automatically calculates calories burned based on step count
-- **🎯 Daily Goals**: Default goal of 6,000 steps, customizable to user preference
-- **🔄 Daily Reset**: Automatically resets step count at midnight
-- **📅 Weekly Statistics**: Records and displays step data for the past week
-- **🔗 Health Connect Integration**: Supports Google Health Connect service integration
-- **📲 Foreground Service Notification**: Displays current steps and progress
+- **Real-time Step Counting**: Records user steps using the device's built-in sensors
+- **Calorie Calculation**: Automatically calculates calories burned based on step count
+- **Daily Goals**: Default goal of 6,000 steps, customizable to user preference
+- **Daily Reset**: Automatically resets step count at midnight
+- **Weekly Statistics**: Records and displays step data for the past week
+- **Health Connect Integration**: Supports Google Health Connect service integration
+- **Foreground Service Notification**: Displays current steps and progress
+
+## 📱 App Screenshots
+
+<div align="center">
+<table>
+  <tr>
+    <td><img src="img.png" width="250" alt="Main Interface"/></td>
+    <td><img src="img_1.png" width="250" alt="Step Count Display"/></td>
+  </tr>
+  <tr>
+    <td><img src="img_2.png" width="250" alt="Health Connect Integration"/></td>
+    <td><img src="img_3.png" width="250" alt="Weekly Statistics"/></td>
+  </tr>
+  <tr>
+    <td><img src="img_4.png" width="250" alt="Foreground Service Notification"/></td>
+    <td><img src="img_5.png" width="250" alt="Settings Screen"/></td>
+  </tr>
+</table>
+</div>
 
 ## 🔧 Technical Architecture
 
-- **📝 Programming Language**: Kotlin
-- **🏗️ Design Patterns**: MVVM, Singleton, Repository
-- **⚙️ Core Components**: Android Sensor API, Foreground Service, Health Connect API
-- **🎨 UI Components**: ConstraintLayout, CardView, ProgressBar
+- Programming Language: Kotlin
+- Design Patterns: MVVM, Singleton, Repository
+- Core Components: Android Sensor API, Foreground Service, Health Connect API
+- UI Components: ConstraintLayout, CardView, ProgressBar
 
 ## 💻 Environment Requirements
 
-### 👨‍💻 Development Environment
+### Development Environment
 
-| Tool | Minimum Version                    |
-| --- |------------------------------------|
+| Tool | Minimum Version                 |
+| --- |---------------------------------|
 | Android Studio | Meerkat Feature Drop 2024.3.2 RC 2 |
-| Gradle | 8.13 or higher                     |
-| JDK | 21                                 |
+| Gradle | 8.13 or higher                   |
+| JDK | 21                              |
 
-### 📱 Target SDK Versions
+### Target SDK Versions
 
 | SDK Type | Version |
 | --- | --- |
@@ -39,7 +58,7 @@ Steps Tracking App is a health-focused Android application designed to record an
 | Minimum SDK | 26 (Android 8.0 Oreo) |
 | Target SDK | 35 (Android 15) |
 
-### 📲 Device Requirements
+### Device Requirements
 
 - Android 8.0 (API 26) or higher Android device
 - Device must have a step counter sensor (STEP_COUNTER)
@@ -70,8 +89,7 @@ app/
 │   │   │   ├── StepsRepository.kt          # Data repository, manages step data
 │   │   │   ├── StepsTrackingService.kt     # Foreground service, records and updates steps
 │   │   │   ├── SplashActivity.kt           # Launch screen and permission handling
-│   │   │   ├── MainViewModel.kt            # Main view model, handles UI logic
-│   │   │   └── ...
+│   │   │   └── MainViewModel.kt            # Main view model, handles UI logic
 │   │   └── res/                            # Resources directory
 │   └── ...
 └── ...
@@ -84,27 +102,7 @@ app/
 3. Connect an Android device or start an emulator
 4. Click the "Run" button to build and install the app
 
-> 💡 **Tip**: The app will request necessary permissions when first launched, please allow them for full functionality.
-
-## 📱 App Screenshots
-
-### Main Interface
-![Main Interface](img.png)
-
-### Step Count Display
-![Step Count Display](img_1.png)
-
-### Health Connect Integration
-![Health Connect Integration](img_2.png)
-
-### Weekly Statistics
-![Weekly Statistics](img_3.png)
-
-### Foreground Service Notification
-![Foreground Service Notification](img_4.png)
-
-### Settings Screen
-![Settings Screen](img_5.png)
+> **Tip**: The app will request necessary permissions when first launched, please allow them for full functionality.
 
 ## ⚠️ Limitations and Known Issues
 
@@ -137,7 +135,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## 📝 Change Log
 
-### Version 1.0 🎉
+### Version 1.0
 - Initial release
 - Basic step tracking functionality
 - Health Connect integration
