@@ -1,9 +1,9 @@
+
 <div align="center">
 
 ![萌萌计数器](https://count.getloli.com/get/@StepsTracking?theme=rule34)
 
 </div>
-
 
 # 📱 步数追踪应用 (Steps Tracking App)
 
@@ -95,23 +95,6 @@ app/
 
 > 💡 **提示**：首次运行应用时会请求必要权限，请务必允许以获得完整功能体验。
 ## 📱 应用屏幕截图
-
-<div align="center">
-<table>
-  <tr>
-    <td><img src="img.png" width="250" alt="Main Interface"/></td>
-    <td><img src="img_1.png" width="250" alt="Step Count Display"/></td>
-  </tr>
-  <tr>
-    <td><img src="img_2.png" width="250" alt="Health Connect Integration"/></td>
-    <td><img src="img_3.png" width="250" alt="Weekly Statistics"/></td>
-  </tr>
-  <tr>
-    <td><img src="img_4.png" width="250" alt="Foreground Service Notification"/></td>
-    <td><img src="img_5.png" width="250" alt="Settings Screen"/></td>
-  </tr>
-</table>
-</div>
 
 ## ⚠️ 限制与已知问题
 
