@@ -1,11 +1,12 @@
 
+
+# 📱 步数追踪应用 (Steps Tracking App)
+
 <div align="center">
 
 ![萌萌计数器](https://count.getloli.com/get/@StepsTracking?theme=rule34)
 
 </div>
-
-# 📱 步数追踪应用 (Steps Tracking App)
 
 📖 [打开英文版说明 The manual is available in English ](https://github.com/Pangu-Immortal/StepsTracking/blob/main/README.en.md)
 
