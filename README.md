@@ -8,6 +8,10 @@
 
 </div>
 
+<p align="center">
+  <b>🌟 如果觉得有帮助，请点击 <a href="https://github.com/Pangu-Immortal/StepsTracking/stargazers">Star</a> 支持一下，关注不迷路！🌟</b>
+</p>
+
 📖 [打开英文版说明 The manual is available in English ](https://github.com/Pangu-Immortal/StepsTracking/blob/main/README.en.md)
 
 ## 🚶‍♂️ 项目简介
