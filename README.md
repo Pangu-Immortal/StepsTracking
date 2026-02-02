@@ -1,4 +1,9 @@
-![访客统计](https://count.getloli.com/get/@StepsTracking?theme=rule34)
+<div align="center">
+
+![萌萌计数器](https://count.getloli.com/get/@StepsTracking?theme=rule34)
+
+</div>
+
 
 # 📱 步数追踪应用 (Steps Tracking App)
 
@@ -89,8 +94,6 @@ app/
 4. 点击"运行"按钮构建并安装应用
 
 > 💡 **提示**：首次运行应用时会请求必要权限，请务必允许以获得完整功能体验。
-
-
 ## 📱 应用屏幕截图
 
 <div align="center">
@@ -167,8 +170,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
